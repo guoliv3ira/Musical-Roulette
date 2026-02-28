@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Musical Roulette | guoliv3 & abacategotico</title>
+    <style>
+      :root {
+        --lastfm-red: #ba0000;
+        --bg-dark: #121212;
+        --card-bg: #1e1e1e;
+        --text-color: #ffffff;
+      }
+
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background-color: var(--bg-dark);
+        color: var(--text-color);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        margin: 0;
+      }
+
+      .container {
+        background-color: var(--card-bg);
+        padding: 2rem;
+        border-radius: 20px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        text-align: center;
+        max-width: 450px;
+        width: 90%;
+        border: 1px solid #333;
+      }
+
+      h1 {
+        font-size: 1.5rem;
+        margin-bottom: 0.5rem;
+      }
+      .users {
+        color: #888;
+        margin-bottom: 2rem;
+        font-size: 0.9rem;
+      }
+
+      button {
+        background-color: var(--lastfm-red);
+        color: white;
+        border: none;
+        padding: 12px 25px;
+        font-size: 1rem;
+        font-weight: bold;
+        border-radius: 50px;
+        cursor: pointer;
+        transition: transform 0.2s, background 0.3s;
+        margin: 10px 0;
+        width: 100%;
+      }
+
+      button:hover {
+        background-color: #ff0000;
+        transform: scale(1.02);
+      }
+      button:disabled {
+        background-color: #555;
+        cursor: not-allowed;
+      }
+
+      #artista-imagem {
+        width: 180px;
+        height: 180px;
+        border-radius: 50%;
+        object-fit: cover;
+        margin: 20px auto;
+        border: 4px solid var(--lastfm-red);
+        display: none;
+      }
+
+      .resultado-area {
+        margin-top: 20px;
+        min-height: 50px;
+      }
+      .musica-destaque {
+        margin-top: 15px;
+        padding: 15px;
+        background: #2a2a2a;
+        border-radius: 10px;
+        display: none;
+        border-left: 5px solid var(--lastfm-red);
+      }
+
+      .loader {
+        border: 4px solid #f3f3f3;
+        border-top: 4px solid var(--lastfm-red);
+        border-radius: 50%;
+        width: 30px;
+        height: 30px;
+        animation: spin 1s linear infinite;
+        display: none;
+        margin: 20px auto;
+      }
+
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Sorteio de Artista</h1>
+      <p class="users">
+        🤝 <strong>guoliv3</strong> & <strong>abacategotico</strong>
+      </p>
+
+      <button id="btn-sortear" onclick="iniciarSorteio()">
+        Sortear Artista em Comum
+      </button>
+
+      <div id="loader" class="loader"></div>
+
+      <div class="resultado-area">
+        <img id="artista-imagem" src="" alt="Artista" />
+        <div
+          id="artista-nome"
+          style="font-size: 1.4rem; font-weight: bold"
+        ></div>
+        <div id="info-comum" style="color: #aaa; margin-top: 5px"></div>
+      </div>
+
+      <div id="area-musica">
+        <button id="btn-musica" style="display: none; background-color: #333">
+          Ver música mais ouvida
+        </button>
+        <div id="musica-resultado" class="musica-destaque"></div>
+      </div>
+    </div>
+
+    <script>
+      // --- CONFIGURAÇÃO ---
+      const API_KEY = "5eab899dd6f841aaee2a0a136d1d99b6"; // <--- INSIRA SUA CHAVE AQUI
+      const USER1 = "guoliv3";
+      const USER2 = "abacategotico";
+
+      const btnSortear = document.getElementById("btn-sortear");
+      const btnMusica = document.getElementById("btn-musica");
+      const loader = document.getElementById("loader");
+      const imgArtista = document.getElementById("artista-imagem");
+      const nomeArtista = document.getElementById("artista-nome");
+      const infoComum = document.getElementById("info-comum");
+      const musicaRes = document.getElementById("musica-resultado");
+
+      async function fetchTopArtists(user) {
+        const url = `https://ws.audioscrobbler.com/2.0/?method=user.gettopartists&user=${user}&api_key=${API_KEY}&limit=100&format=json`;
+        const res = await fetch(url);
+        const data = await res.json();
+        return data.topartists.artist; // Retorna objeto completo para pegar fotos se necessário
+      }
+
+      async function getArtistInfo(artistName) {
+        const url = `https://ws.audioscrobbler.com/2.0/?method=artist.getinfo&artist=${encodeURIComponent(
+          artistName
+        )}&api_key=${API_KEY}&format=json`;
+        const res = await fetch(url);
+        const data = await res.json();
+        return data.artist;
+      }
+
+      async function getTopTrack(artistName) {
+        const url = `https://ws.audioscrobbler.com/2.0/?method=artist.gettoptracks&artist=${encodeURIComponent(
+          artistName
+        )}&api_key=${API_KEY}&limit=1&format=json`;
+        const res = await fetch(url);
+        const data = await res.json();
+        return data.toptracks.track[0].name;
+      }
+
+      async function iniciarSorteio() {
+        // Reset de interface
+        btnSortear.disabled = true;
+        loader.style.display = "block";
+        imgArtista.style.display = "none";
+        btnMusica.style.display = "none";
+        musicaRes.style.display = "none";
+        nomeArtista.innerText = "";
+        infoComum.innerText = "";
+
+        try {
+          const [data1, data2] = await Promise.all([
+            fetchTopArtists(USER1),
+            fetchTopArtists(USER2),
+          ]);
+
+          const nomes1 = data1.map((a) => a.name);
+          const nomes2 = data2.map((a) => a.name);
+
+          const comuns = nomes1.filter((n) => nomes2.includes(n));
+
+          if (comuns.length === 0) {
+            nomeArtista.innerText = "Nenhum artista em comum no Top 100 😢";
+          } else {
+            const sorteado = comuns[Math.floor(Math.random() * comuns.length)];
+            const info = await getArtistInfo(sorteado);
+
+            // Exibe Imagem e Nome
+            imgArtista.src =
+              info.image[3]["#text"] ||
+              "https://via.placeholder.com/180?text=No+Image";
+            imgArtista.style.display = "block";
+            nomeArtista.innerText = sorteado;
+            // infoComum.innerText = `Vocês têm ${comuns.length} artistas em comum.`;
+
+            // Prepara botão de música
+            btnMusica.style.display = "block";
+            btnMusica.onclick = async () => {
+              btnMusica.disabled = true;
+              const track = await getTopTrack(sorteado);
+              musicaRes.innerHTML = `🎵 A mais ouvida: <strong>${track}</strong>`;
+              musicaRes.style.display = "block";
+              btnMusica.disabled = false;
+            };
+          }
+        } catch (err) {
+          nomeArtista.innerText = "Erro na API. Verifique a chave!";
+          console.error(err);
+        } finally {
+          loader.style.display = "none";
+          btnSortear.disabled = false;
+        }
+      }
+    </script>
+  </body>
+</html>
